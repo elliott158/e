@@ -1,11 +1,53 @@
 #include <SDL2/SDL.h>
 #include <cairo/cairo.h>
+
 #include <stdio.h>
+#include <stdlib.h>
 
-#define WIDTH  640
-#define HEIGHT 480
+#include "common.h"
 
-#define DEFAULT_TEXT_SIZE 16
+#define WIDTH  1280
+#define HEIGHT 960
+//window can be resized, but resolution stays constant
+
+#define DEFAULT_TEXT_SIZE 32
+
+typedef struct {
+  char* items;
+  size_t used;
+  size_t capacity;
+} Buffer;
+
+void reset_font(cairo_t *cr) {
+  cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
+  cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
+  cairo_select_font_face(
+    cr,
+    "@cairo:monospace",
+    CAIRO_FONT_SLANT_NORMAL,
+    CAIRO_FONT_WEIGHT_NORMAL
+  );
+  cairo_set_font_size(cr, DEFAULT_TEXT_SIZE);
+}
+
+void print_buffer(Buffer xs) {
+  for (int i=0;i<xs.used;++i) {
+    printf("%c", xs.items[i]);
+  }
+  puts("\n");
+}
+
+Buffer buffer_init(size_t initial_capacity) {
+  return (Buffer){
+    .capacity = initial_capacity,
+    .used = 0,
+    .items = malloc(sizeof(char) * initial_capacity),
+  };
+}
+
+void draw_buffer(cairo_t *cr, Buffer xs) {
+  if (xs.used > 0) cairo_show_text(cr, xs.items);
+}
 
 int main(void)
 {
@@ -22,6 +64,7 @@ int main(void)
     HEIGHT,
     0
   );
+  SDL_SetWindowResizable(window, SDL_TRUE);
 
   SDL_Renderer *renderer = SDL_CreateRenderer(
     window, -1, SDL_RENDERER_ACCELERATED
@@ -47,27 +90,17 @@ int main(void)
   );
 
   cairo_t *cr = cairo_create(surface);
-
-  cairo_set_source_rgb(cr, 0.0, 0.0, 0.0);
-  cairo_paint(cr);
-
-  cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
-  cairo_select_font_face(
-    cr,
-    "Sans",
-    CAIRO_FONT_SLANT_NORMAL,
-    CAIRO_FONT_WEIGHT_NORMAL
-  );
-  cairo_set_font_size(cr, DEFAULT_TEXT_SIZE);
+  reset_font(cr);
   //setup done
   
   cairo_move_to(cr, 0, DEFAULT_TEXT_SIZE);
-  cairo_show_text(cr, "// This is the scratch buffer. Put what you want here.");
 
+  Buffer working = buffer_init(256);
+  
   int running = 1;
   while (running) {
     SDL_Event event;
-
+    
     // event handling
     SDL_StartTextInput();
     while (SDL_PollEvent(&event)) {
@@ -79,12 +112,37 @@ int main(void)
 
       case SDL_TEXTINPUT:
         // does not handle modifiers
-        cairo_show_text(cr, event.text.text);
+        da_append(working, event.text.text[0]);
         break;
-      }
-      
+
+      case SDL_KEYDOWN:
+        switch (event.key.keysym.sym) {
+        case SDLK_BACKSPACE:
+          if (working.used > 0) {
+            working.items[working.used - 1] = '\0';
+            working.used--;
+          }
+          break;
+        case SDLK_RETURN:
+          da_append(working, '\n');
+        default:
+          break;
+        }
+      default:
+        break;
+      }      
     }
-        
+    
+    cairo_set_source_rgb(cr, 0.0, 0.0, 0.0);
+    cairo_paint(cr);
+    
+    cairo_set_source_rgb(cr, 1,1,1);
+    cairo_move_to(cr,0,DEFAULT_TEXT_SIZE/1.5);
+
+    draw_buffer(cr, working);
+    
+    cairo_surface_flush(surface);
+    
     SDL_UpdateTexture(
       texture,
       NULL,
@@ -99,8 +157,9 @@ int main(void)
     SDL_Delay(16);
   }
 
+  print_buffer(working);
   //destruction begins
-
+  da_free(working);
   cairo_destroy(cr);
   cairo_surface_flush(surface);
   cairo_surface_destroy(surface);
