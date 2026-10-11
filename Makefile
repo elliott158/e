@@ -1,8 +1,6 @@
 
 all: terminal.e 
 
-cairo.e: src/cairo.c src/common.h
-	$(CC) src/cairo.c -o cairo.e $(shell pkg-config --cflags --libs sdl2 cairo)
+clean:
+	rm -f *.e
 
-terminal.e: src/terminal.c
-	$(CC) src/terminal.c -o terminal.e
