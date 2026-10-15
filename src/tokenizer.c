@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
-void split(char* str, char* delim) {
+void split(char str[], char delim[]) {
   char* token;
   token = strtok(str, delim);
   while (token) {
@@ -11,10 +11,8 @@ void split(char* str, char* delim) {
 }
 
 int main() {
-  char* str = "";
-  scanf("%s", str);
-  printf("%s\n", str);
-  char* delim = " ";
+  char str[] = "hello hello";
+  char delim[] = " ";
   split(str, delim);
   return 0;
 }
